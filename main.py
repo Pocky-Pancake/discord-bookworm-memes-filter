@@ -24,7 +24,7 @@ class renameModal(nextcord.ui.Modal):
         super().__init__("Rename Thread")
         self.thread = thread
 
-        self.set_name = nextcord.ui.TextInput(label="Thread Name:", min_length=1, max_length=50, required=True, style=nextcord.TextInputStyle.short)
+        self.set_name = nextcord.ui.TextInput(label="Thread Name:", min_length=1, max_length=100, required=True, style=nextcord.TextInputStyle.short)
         self.add_item(self.set_name)
 
     async def callback(self, interaction:Interaction) -> None:
