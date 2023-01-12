@@ -80,7 +80,7 @@ async def on_message(message):
             if message.attachments or (message.content and URL_REGEX.match(message.content)) or (message.content and URL_REGEX2.match(message.content)) or (message.content and URL_REGEX3.match(message.content)):
                 thread = await message.create_thread(name=f"{message.author.name}'s meme discussion")
                 embed = nextcord.Embed(title="Edit thread?", description="Use 🚮 button to delete it\n *or*\nUse 📝 button to rename it.", color=randint(0,16777215))
-                embed.set_footer(text="This will only be valid for the first 10 minutes. To rename the thread afterwards use </rename:1062906458523586620> instead.")
+                embed.set_footer(text="This will only be valid for the first 10 minutes. To rename the thread afterwards use /rename instead.")
                 await thread.send(embed=embed, view=threadView(thread, message.author.id), delete_after=600)
                 sql = "INSERT INTO threads (user_id, thread_id) VALUES (?, ?)"
                 val = (message.author.id, thread.id)
