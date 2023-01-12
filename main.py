@@ -9,7 +9,7 @@ load_dotenv()
 intents = nextcord.Intents.all()
 client = nextcord.Client(intents=intents)
 
-filter_channels_ids = [1062211727527247932]
+filter_channel_id = int(os.getenv('TARGET'))
 
 conn = sqlite3.connect("bot.sqlite3")
 c = conn.cursor()
@@ -75,22 +75,21 @@ URL_REGEX3 = re.compile(r".*https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a
 
 @client.event
 async def on_message(message):
-    for x in filter_channels_ids:
-        if message.channel.id == x:
-            if message.attachments or (message.content and URL_REGEX.match(message.content)) or (message.content and URL_REGEX2.match(message.content)) or (message.content and URL_REGEX3.match(message.content)):
-                thread = await message.create_thread(name=f"{message.author.name}'s meme discussion")
-                embed = nextcord.Embed(title="Edit thread?", description="Use 🚮 button to delete it\n *or*\nUse 📝 button to rename it.", color=randint(0,16777215))
-                embed.set_footer(text="This will only be valid for the first 10 minutes. To rename the thread afterwards use /rename instead.")
-                await thread.send(embed=embed, view=threadView(thread, message.author.id), delete_after=600)
-                sql = "INSERT INTO threads (user_id, thread_id) VALUES (?, ?)"
-                val = (message.author.id, thread.id)
-                c.execute(sql,val)
-                conn.commit()
-            elif message.author.bot or message.author.guild_permissions.manage_channels:
-                pass
-            else:
-                await message.author.send(f"In order to keep {message.channel.mention} as organized as possible, it is only possible to discuss memes via threads.")
-                await message.delete()
+    if message.channel.id == filter_channel_id:
+        if message.attachments or (message.content and URL_REGEX.match(message.content)) or (message.content and URL_REGEX2.match(message.content)) or (message.content and URL_REGEX3.match(message.content)):
+            thread = await message.create_thread(name=f"{message.author.name}'s meme discussion")
+            embed = nextcord.Embed(title="Edit thread?", description="Use 🚮 button to delete it\n *or*\nUse 📝 button to rename it.", color=randint(0,16777215))
+            embed.set_footer(text="This will only be valid for the first 10 minutes. To rename the thread afterwards use /rename instead.")
+            await thread.send(embed=embed, view=threadView(thread, message.author.id), delete_after=600)
+            sql = "INSERT INTO threads (user_id, thread_id) VALUES (?, ?)"
+            val = (message.author.id, thread.id)
+            c.execute(sql,val)
+            conn.commit()
+        elif message.author.bot or message.author.guild_permissions.manage_channels:
+            pass
+        else:
+            await message.author.send(f"In order to keep {message.channel.mention} as organized as possible, it is only possible to discuss memes via threads.")
+            await message.delete()
 
 @client.slash_command(description="Rename a thread")
 async def rename(interaction:Interaction):
@@ -103,7 +102,6 @@ async def rename(interaction:Interaction):
     if interaction.channel.id == thread_id and interaction.user.id == user_id:
         thread = await client.fetch_channel(thread_id)
         await interaction.response.send_modal(renameModal(thread))
-        await interaction.response.send_message("Done.", ephemeral=True)
     else:
         await interaction.response.send_message("This channel is either not a thread, not a registered thread or you don't own this thread.", ephemeral=True)
 
