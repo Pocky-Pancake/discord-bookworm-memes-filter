@@ -34,7 +34,7 @@ class renameModal(nextcord.ui.Modal):
 
 class renameThread(nextcord.ui.Button):
     def __init__(self, thread, caller):
-        super().__init__(emoji="<:gEDIT:1062968117686435940>", style=nextcord.ButtonStyle.blurple)
+        super().__init__(emoji="📝", style=nextcord.ButtonStyle.blurple)
         self.thread = thread
         self.caller = caller
 
@@ -46,7 +46,7 @@ class renameThread(nextcord.ui.Button):
 
 class rejectThread(nextcord.ui.Button):
     def __init__(self, thread, caller):
-        super().__init__(emoji="<:gDEL:1062968115153076265>", style=nextcord.ButtonStyle.red)
+        super().__init__(emoji="🚮", style=nextcord.ButtonStyle.red)
         self.thread = thread
         self.caller = caller
     
@@ -78,7 +78,7 @@ async def on_message(message):
     if message.channel.id == filter_channel_id:
         if message.attachments or (message.content and URL_REGEX.match(message.content)) or (message.content and URL_REGEX2.match(message.content)) or (message.content and URL_REGEX3.match(message.content)):
             thread = await message.create_thread(name=f"{message.author.name}'s meme discussion")
-            embed = nextcord.Embed(title="Edit thread?", description="Use <:gDEL:1062968115153076265> button to delete it\n *or*\nUse <:gEDIT:1062968117686435940> button to rename it.", color=randint(0,16777215))
+            embed = nextcord.Embed(title="Edit thread?", description="Use 🚮 button to delete it\n *or*\nUse 📝 button to rename it.", color=randint(0,16777215))
             embed.set_footer(text="This will only be valid for the first 10 minutes. To rename the thread afterwards use /rename instead.")
             await thread.send(embed=embed, view=threadView(thread, message.author.id), delete_after=600)
             await thread.leave()
