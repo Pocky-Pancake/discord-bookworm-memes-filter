@@ -6,8 +6,9 @@ from random import randint
 
 load_dotenv()
 
+activity = nextcord.Activity(type=nextcord.ActivityType.watching)
 intents = nextcord.Intents.all()
-client = nextcord.Client(intents=intents)
+client = nextcord.Client(intents=intents, activity=activity)
 
 filter_channel_id = int(os.getenv('TARGET'))
 
@@ -30,7 +31,6 @@ class renameModal(nextcord.ui.Modal):
     async def callback(self, interaction:Interaction) -> None:
         set_name = self.set_name.value
         await self.thread.edit(name=set_name)
-        return 0
 
 class renameThread(nextcord.ui.Button):
     def __init__(self, thread, caller):
@@ -105,32 +105,6 @@ async def rename(interaction:Interaction):
         await interaction.response.send_modal(renameModal(thread))
     else:
         await interaction.response.send_message("This channel is either not a thread, not a registered thread or you don't own this thread.", ephemeral=True)
-
-@client.slash_command(description="Close a thread")
-async def close(interaction:Interaction):
-    try:
-        thread_id = c.execute(f"SELECT thread_id FROM threads WHERE thread_id = {interaction.channel.id}").fetchone()[0]
-        user_id = c.execute(f"SELECT user_id FROM threads WHERE thread_id = {thread_id}").fetchone()[0]
-    except:
-        thread_id = None
-        user_id = None
-    if interaction.channel.id == thread_id and interaction.user.id == user_id:
-        thread = await client.fetch_channel(thread_id)
-        await thread.edit(archived=True)
-        await interaction.response.send_message("This thread is now closed")
-    else:
-        await interaction.response.send_message("This channel is either not a thread, not a registered thread or you don't own this thread.", ephemeral=True)
-
-# @client.slash_command(description="Set specific slowmode to the channel you are in. Set 0 to disable slowmode.")
-# async def slowmode(interaction:Interaction, delay:int = nextcord.SlashOption(max_value=21600, min_value=0, description="Delay time in seconds.")):
-#     if interaction.user.guild_permissions.manage_channels:
-#         try:
-#             await interaction.channel.edit(slowmode_delay=delay, reason=f"{interaction.user.name} used /set_slowmode.")
-#         except:
-#             await interaction.channel.edit(slowmode_delay=delay)
-#         await interaction.response.send_message(f"Slowmode set to {delay} seconds.")
-#     else:
-#         await interaction.response.send_message("The \"manage channels\" permission is required to use this command", ephemeral=True)
 
 client.run(os.getenv('TOKEN'))
 
