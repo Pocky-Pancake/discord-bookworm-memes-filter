@@ -106,6 +106,21 @@ async def rename(interaction:Interaction):
     else:
         await interaction.response.send_message("This channel is either not a thread, not a registered thread or you don't own this thread.", ephemeral=True)
 
+@client.slash_command(description="Close a thread")
+async def close(interaction:Interaction):
+    try:
+        thread_id = c.execute(f"SELECT thread_id FROM threads WHERE thread_id = {interaction.channel.id}").fetchone()[0]
+        user_id = c.execute(f"SELECT user_id FROM threads WHERE thread_id = {thread_id}").fetchone()[0]
+    except:
+        thread_id = None
+        user_id = None
+    if interaction.channel.id == thread_id and interaction.user.id == user_id:
+        thread = await client.fetch_channel(thread_id)
+        await thread.edit(archived=True)
+        await interaction.response.send_message("This thread is now closed")
+    else:
+        await interaction.response.send_message("This channel is either not a thread, not a registered thread or you don't own this thread.", ephemeral=True)
+
 # @client.slash_command(description="Set specific slowmode to the channel you are in. Set 0 to disable slowmode.")
 # async def slowmode(interaction:Interaction, delay:int = nextcord.SlashOption(max_value=21600, min_value=0, description="Delay time in seconds.")):
 #     if interaction.user.guild_permissions.manage_channels:
