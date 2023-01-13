@@ -86,7 +86,7 @@ async def on_message(message):
             val = (message.author.id, thread.id)
             c.execute(sql,val)
             conn.commit()
-        elif message.author.bot or message.author.guild_permissions.manage_channels:
+        elif message.author.guild_permissions.manage_channels:
             pass
         else:
             await message.author.send(f"In order to keep {message.channel.mention} as organized as possible, it is only possible to discuss memes via threads.")
