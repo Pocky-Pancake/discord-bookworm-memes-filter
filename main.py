@@ -91,7 +91,10 @@ async def on_message(message):
             pass
             print("Message passed")
         else:
-            await message.author.send(f"In order to keep {message.channel.mention} as organized as possible, it is only possible to discuss memes via threads.")
+            try:
+                await message.author.send(f"In order to keep {message.channel.mention} as organized as possible, it is only possible to discuss memes via threads.")
+            except:
+                pass
             print(f"Deleted message from {message.author.name}")
             await message.delete()
 
