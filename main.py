@@ -6,7 +6,7 @@ from random import randint
 
 load_dotenv()
 
-activity = nextcord.Activity(type=nextcord.ActivityType.watching)
+activity = nextcord.Activity(type=nextcord.ActivityType.watching, name="#bookworm-memes")
 intents = nextcord.Intents.all()
 client = nextcord.Client(intents=intents, activity=activity)
 
