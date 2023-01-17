@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 
 bot.sqlite3
+history_log
