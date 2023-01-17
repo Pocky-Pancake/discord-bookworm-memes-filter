@@ -94,7 +94,7 @@ async def on_message(message):
             try:
                 await message.author.send(f"In order to keep {message.channel.mention} as organized as possible, it is only possible to discuss memes via threads.")
             except:
-                pass
+                await message.channel.send(f"{message.author.mention}\nIn order to keep {message.channel.mention} as organized as possible, it is only possible to discuss memes via threads.", delete_after=30)
             print(f"Deleted message from {message.author.name}")
             await message.delete()
 
