@@ -23,8 +23,8 @@ c.execute("""CREATE TABLE IF NOT EXISTS threads (
 
 def doLog(content):
     print(content)
-    f = open("history_log", "w")
-    f.write(content)
+    f = open("history_log", "a")
+    f.write(f"{content}\n")
     f.close()
     return 0 
 
