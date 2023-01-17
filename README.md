@@ -12,3 +12,5 @@ Users may delete and rename the thread (using the embed & buttons the bot sended
 The /rename command can be used after the 10 minutes as an alternative.
 
 This bot allows keeping the meme channel as moderated as possible while keeping the ability of discussing memes via threads.
+
+The bot can also log events.
