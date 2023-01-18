@@ -89,12 +89,12 @@ class threadView(nextcord.ui.View):
 async def on_ready():
     print("Bot ready")
 
-URL_REGEX = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
+url_regex = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
 
 @client.event
 async def on_message(message):
     if message.channel.id == filter_channel_id:
-        if message.attachments or re.search(URL_REGEX, message.content):
+        if message.attachments or re.search(url_regex, message.content):
             thread = await message.create_thread(name=f"{message.author.name}'s meme discussion")
             embed = nextcord.Embed(title="Edit thread?", description="Use 🚮 button to delete it\n *or*\nUse 📝 button to rename it.", color=randint(0,16777215))
             embed.set_footer(text="This will only be valid for the first 10 minutes. To rename the thread afterwards use /rename instead.")
