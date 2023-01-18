@@ -109,7 +109,7 @@ async def on_message(message):
             doLog(f"Deleted message from {message.author.name}")
             await message.delete()
 
-@client.slash_command(description="Rename a thread")
+@client.slash_command(description="Renames a meme discussion thread (in #bookworm-memes) you started.")
 async def rename(interaction:Interaction):
     try:
         thread_id = c.execute(f"SELECT thread_id FROM threads WHERE thread_id = {interaction.channel.id}").fetchone()[0]
@@ -123,6 +123,13 @@ async def rename(interaction:Interaction):
     else:
         await interaction.response.send_message("This channel is either not a thread, not a registered thread or you don't own this thread.", ephemeral=True)
 
+@client.slash_command(description="Check bot status and latency.")
+async def stats(interaction:Interaction):
+    if interaction.channel.id == 991766420260143204 or interaction.channel.id == 638020706935767100 or interaction.channel.id == 1029782845071294595:
+        embed = nextcord.Embed(title=f"{client.user.name} Stats", description=f"-status: {client.status}\n-latency: {client.latency}\n-user: {client.user.mention}", color=randint(0x0,0xffffff))
+        await interaction.response.send_message(embed=embed)
+    else:
+        await interaction.response.send_message("This command is only possible in the bots channel.", ephemeral=True)
 client.run(os.getenv('TOKEN'))
 
 
