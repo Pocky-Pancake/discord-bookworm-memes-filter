@@ -117,13 +117,15 @@ async def rename(interaction:Interaction):
 
 @client.slash_command(description="Check bot status and latency.")
 async def stats(interaction:Interaction):
+    permit = False
     for x in os.getenv('BOTS').split(','):
-        permit = True if interaction.channel.id == int(x) else False
-        if permit:
-            embed = nextcord.Embed(title=f"{client.user.name} Stats", description=f"-status: {client.status}\n-latency: {client.latency}\n-user: {client.user.mention}", color=randint(0x0,0xffffff))
-            await interaction.response.send_message(embed=embed)
-        else:
-            await interaction.response.send_message("This command is only possible in the valid bots channels.", ephemeral=True)
+        if interaction.channel.id == int(x):
+            permit = True
+    if permit:
+        embed = nextcord.Embed(title=f"{client.user.name} Stats", description=f"-status: {client.status}\n-latency: {client.latency}\n-user: {client.user.mention}", color=randint(0x0,0xffffff))
+        await interaction.response.send_message(embed=embed)
+    else:
+        await interaction.response.send_message("This command is only possible in the valid bots channels.", ephemeral=True)
 
 client.run(os.getenv('TOKEN'))
 
