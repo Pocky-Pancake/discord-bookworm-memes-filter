@@ -77,7 +77,6 @@ async def on_message(message):
             try:
                 thread = await message.create_thread(name=f"{message.author.name}'s meme discussion")
                 embed = nextcord.Embed(title="New Thread", description=f"This thread has been initialized by {message.author.mention}\n\nUse 📝 button to rename it. This will only be valid for the first 10 minutes. To rename the thread afterwards use /rename instead.", color=randint(0,0xffffff))
-                embed.set_footer(text="")
                 await thread.send(embed=embed, view=threadView(thread, message.author.id), delete_after=600)
                 await thread.leave()
                 sql = "INSERT INTO threads (user_id, thread_id) VALUES (?, ?)"
