@@ -1,4 +1,4 @@
-# discord-bookworm-memes-filter
+# Waschen
 
 This is a simple bot made for the ascendance of a bookworm discord server (https://discord.gg/honzuki).
 It's not finished but all the essential is there.
