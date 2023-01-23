@@ -1,6 +1,12 @@
 # discord-bookworm-memes-filter
 
-This is server specific discord bot.
+This is a simple bot made for the ascendance of a bookworm discord server (https://discord.gg/honzuki).
+It's not finished but all the essential is there.
+This bot uses nextcord.
+
+```
+$ pip install -U nextcord
+```
 
 ## How it works
 
