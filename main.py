@@ -65,8 +65,6 @@ class threadView(nextcord.ui.View):
     async def on_error(self, error, item, interaction):
         raise error
 
-
-
 @client.event
 async def on_ready():
     embeds_id = c.execute("SELECT embedmsg_id FROM threads").fetchall()
@@ -85,8 +83,11 @@ url_regex = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,
 async def on_message(message):
     if message.channel.id == filter_channel_id:
         if message.attachments or re.search(url_regex, message.content):
+            for x in client.get_all_application_commands():
+                if x.qualified_name == "rename":
+                    rename_slash = x
             thread = await message.create_thread(name=f"{message.author.name}'s meme discussion")
-            embed = nextcord.Embed(title="New Meme Discussion Thread", description=f"Use 📝 button to rename it.\n\nThis will only be valid for the first 10 minutes. To rename the thread afterwards use </rename:1062938905055342592> instead.", color=randint(0,0xffffff))
+            embed = nextcord.Embed(title="New Meme Discussion Thread", description=f"Use 📝 button to rename it.\n\nThis will only be valid for the first 10 minutes. To rename the thread afterwards use {rename_slash.get_mention(guild=None)} instead.", color=randint(0,0xffffff))
             embed.set_footer(icon_url=message.author.avatar.url ,text=f"This thread has been initialized by {message.author.name}")
             embedmsg = await thread.send(embed=embed, view=threadView(thread, message.author.id), delete_after=600)
             await thread.leave()
