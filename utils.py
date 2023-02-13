@@ -4,10 +4,10 @@ from nextcord.ext import commands
 from math import ceil
 from paging import mkpages
 
-async def doLog(content):
+async def doLog(content, client):
     print(content)
-    log_channel = await client.fetch_channel(log_channel_id)
-    await log_channel.send(content=content)
+    # log_channel = await client.fetch_channel(log_channel_id)
+    # await log_channel.send(content=content)
     return 0
 
 async def getPage(interaction, client, sql, page:int, setType:int) -> None:
