@@ -1,4 +1,4 @@
-# discord-bookworm-memes-filter
+# Waschen
 
 This is a simple bot made for the ascendance of a bookworm discord server (https://discord.gg/honzuki).
 It's not finished but all the essential is there.
@@ -20,3 +20,21 @@ The /rename command can be used after the 10 minutes as an alternative.
 This bot allows keeping the meme channel as moderated as possible while keeping the ability of discussing memes via threads.
 
 The bot can also log events.
+
+## Setup
+
+### Making the `.env` file
+
+To run the bot, a `.env` file must be made with the following content:
+
+```
+TOKEN=your_discord_bot_token
+GLOBAL_LOG=global_log_channel_id
+```
+
+Replace `your_discord_bot_token` with your discord bot's token and `global_log_channel_id` with the channel id of a logging channel. The global logging channel will output the log of every server the bot is on. The `GLOBAL_LOG` env can be omitted for no global logging.
+
+Once the `.env` file is made, you may now run the `main.py` file.
+
+### Preparing the bot in the server
+
