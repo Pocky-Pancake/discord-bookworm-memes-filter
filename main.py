@@ -108,7 +108,7 @@ async def stats(interaction:Interaction):
 
 @client.slash_command(description="Add functionning channels.")
 @application_checks.has_permissions(manage_channels=True)
-async def add_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only)."), setType:int = nextcord.SlashOption(description="Choose which functionning type.", choices={"As filter channel":0, "As logging channel":2})):
+async def add_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only)."), setType:int = nextcord.SlashOption(description="Choose which functionning type.", choices={"As filter channel":0, "As logging channel":2}, name="as")):
     check = c.execute(f"SELECT channel_id FROM targets WHERE type = {setType} AND channel_id = {channel.id}").fetchone()
     typeName = {0:"filter channel.", 1:"bots channel", 2:"logs channel"}
     if not check:
@@ -123,10 +123,14 @@ async def add_channel(interaction:Interaction, channel:nextcord.TextChannel = ne
     else:
         await interaction.response.send_message(f"{channel.mention} is already added as {typeName[setType]}.", ephemeral=True)
 
-# @client.slash_command(description="Remove functionning channels.")
-# @application_checks.has_permissions(manage_channels=True)
-# async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).", name="Channel"), setType:int = nextcord.SlashOption(description="Choose which functionning type.", choices={"As filter channel":0, "As logging channel":2}, name="From")):
-#     pass
+@client.slash_command(description="Remove functionning channels.")
+@application_checks.has_permissions(manage_channels=True)
+async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only)."), setType:int = nextcord.SlashOption(description="Choose which functionning type.", choices={"As filter channel":0, "As logging channel":2}, name="from")):
+    check = c.execute(f"SELECT channel_id FROM targets WHERE type = {setType} AND channel_id = {channel.id}").fetchone()
+    if check:
+        pass
+    else:
+        pass
 
 # @client.slash_command(description="Configurate filter channel.")
 # @application_checks.has_permissions(manage_channels=True)
