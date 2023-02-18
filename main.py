@@ -152,7 +152,7 @@ async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nex
     else:
         await interaction.response.send_message(f"{channel.mention} isn't a {typeName[setType]}.", ephemeral=True)
 
-@client.slash_command(description="Configurate filter channel.")
+@client.slash_command(description="Configure filter channel.")
 @application_checks.has_permissions(manage_channels=True)
 async def conf_filter(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).")):
     check = c.execute(f"SELECT channel_id FROM targets WHERE type = 0 AND channel_id = {channel.id}").fetchone()
