@@ -38,3 +38,11 @@ Once the `.env` file is made, you may now run the `main.py` file.
 
 ### Preparing the bot in the server
 
+A filter channel must be set up in the server via the /add_channel command.
+
+```
+/add_channel channel:target_channel as:filter channel
+```
+
+Target channel must be a valid "Text Channel" (No Thread, Voice Chat, Forum Thread).
+Once the filter channel is made, every message in the filter channel will be verified by the bot.

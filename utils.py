@@ -101,9 +101,9 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
         page = 0
 
     info = f"""
-    -Status: {client.status}
-    -Latency: {client.latency}
-    -User: {client.user.mention}
+    -Status: {bot.client.status}
+    -Latency: {bot.client.latency}
+    -User: {bot.client.user.mention}
     -Total registered threads: {len(bot.c.execute(f"SELECT thread_id FROM threads WHERE guild_id = {interaction.guild.id}").fetchall())}"""
     embed = nextcord.Embed(title=f"{bot.client.user.name} Stats", description=info, color=0x3366cc)
     if setType == 0:
