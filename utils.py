@@ -143,12 +143,14 @@ class filterModal(nextcord.ui.Modal):
             self.bot.c.execute(f"UPDATE targets SET default_thread_name = '{self.defaultThreadName.value}' WHERE channel_id = {self.channel.id}")
             self.bot.conn.commit()
             await interaction.send_message(f"{self.channel.mention}'s filter settings has been updated.", ephemeral=True)
+            await doLog(bot, f"Filter channel \"{self.channel.name}\" has been configured.", interaction.guild.id)
         else:
             sql = "INSERT INTO targets (channel_id, guild_id, type, warn_msg, default_thread_name) VALUES (?, ?, ?, ?, ?)"
             val = (self.channel.id, interaction.guild.id, 0, self.warnMsg.value, self.defaultThreadName.value)
             self.bot.c.execute(sql,val)
             self.bot.conn.commit()
             await interaction.response.send_message(f"{self.channel.mention} has been added as filter channel.", ephemeral=True)
+            await doLog(bot, f"Filter channel \"{self.channel.name}\" has been added to the database.", interaction.guild.id)
         return 0
 
     async def on_error(self, error, interaction):
