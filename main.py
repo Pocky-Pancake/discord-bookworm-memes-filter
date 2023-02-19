@@ -171,6 +171,23 @@ async def conf_filter(interaction:Interaction, channel:nextcord.TextChannel = ne
     else:
         await interaction.response.send_message(f"{channel.mention} isn't a filter channel.", ephemeral=True)
 
+@client.slash_command(description="Unregister a thread from the database.")
+async def unregister(interaction:Interaction, thread:nextcord.Thread):
+    check = c.execute(f"SELECT thread_id FROM threads WHERE thread_id = {thread.id}").fetchone()[0]
+    if check:
+        if interaction.user.id == c.execute(f"SELECT user_id FROM threads WHERE thread_id = {check}").fetchone()[0]:
+            c.execute(f"DELETE FROM threads WHERE thread_id = {check}")
+            await interaction.response.send_message("Thread unregistered.", ephemeral=True)
+            await doLog(bot, f"Thread \"{thread.name}\" has been unregistered", interaction.guild.id)
+        elif interaction.user.guild_permissions.manage_channels:
+            c.execute(f"DELETE FROM threads WHERE thread_id = {check}")
+            await interaction.response.send_message("Thread unregistered.", ephemeral=True)
+            await doLog(bot, f"Thread \"{thread.name}\" has been unregistered", interaction.guild.id)
+        else:
+            await interaction.response.send_message("You do not own this thread.", ephemeral=True)
+    else:
+        await interaction.response.send_message("This thread isn't registered.", ephemeral=True)
+
 @client.slash_command(description="Waschen help.")
 async def help(interaction:Interaction):
     commands = client.get_all_application_commands()
