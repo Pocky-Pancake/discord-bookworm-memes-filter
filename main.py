@@ -56,7 +56,6 @@ async def on_application_command_error(interaction:Interaction, error):
     error = getattr(error, "original", error)
     if isinstance(error, application_checks.ApplicationMissingPermissions):
         await interaction.response.send_message(f"{error}", ephemeral=True)
-        await doLog(bot, f"{error}", 0)
     else:
         await doLog(bot, f"⚠ Error: `{error}`", 0)
         raise error
@@ -98,6 +97,14 @@ async def on_message(message):
                 await doLog(bot, f"Deleted message from {message.author.name}", message.guild.id)
                 await message.delete()
 
+@client.event
+async def on_thread_delete(thread):
+    check = c.execute(f"SELECT thread_id FROM threads WHERE thread_id = {thread.id}").fetchone()[0]
+    if check:
+        c.execute(f"DELETE FROM threads WHERE thread_id = {check}")
+        conn.commit
+        await doLog(bot, f"Registered thread \"{thread.name}\" has been deleted.", thread.guild.id)
+
 @client.slash_command(description="Renames a registered discussion thread you started.")
 async def rename(interaction:Interaction):
     try:
@@ -119,6 +126,7 @@ async def stats(interaction:Interaction):
     #    if interaction.channel.id == int(x[0]):
     #        permit = True
     if permit:
+        await doLog(bot, "Stats embed called.", interaction.guild.id)
         await getPage(interaction, bot, 1, 3)
     else:
         await interaction.response.send_message("This command is only possible in the valid bots channels.", ephemeral=True)
@@ -138,6 +146,7 @@ async def add_channel(interaction:Interaction, channel:nextcord.TextChannel = ne
             c.execute(sql,val)
             conn.commit()
             await interaction.response.send_message(f"{channel.mention} has been added as {typeName[setType]}.", ephemeral=True)
+            await doLog(bot, f"{(typeName[setType]).capitalize()} \"{channel.name}\" has been added to the database.", interaction.guild.id)
     else:
         await interaction.response.send_message(f"{channel.mention} is already added as {typeName[setType]}.", ephemeral=True)
 
@@ -149,6 +158,7 @@ async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nex
         c.execute(f"DELETE FROM targets WHERE type = {setType} AND channel_id = {channel.id}")
         conn.commit()
         await interaction.response.send_message(f"{channel.mention} has been removed from {typeName[setType]}.", ephemeral=True)
+        await doLog(bot, f"{(typeName[setType]).capitalize()} \"{channel.name}\" has been removed from the database.", interaction.guild.id)
     else:
         await interaction.response.send_message(f"{channel.mention} isn't a {typeName[setType]}.", ephemeral=True)
 
@@ -175,6 +185,7 @@ async def help(interaction:Interaction):
 
     embed = nextcord.Embed(title="Help", description=slashList, color=0x3366cc)
     await interaction.response.send_message(embed=embed, ephemeral=True)
+    await doLog(bot, "Help embed called.", interaction.guild.id)
 
 try:
     client.run(os.getenv('TOKEN'))
