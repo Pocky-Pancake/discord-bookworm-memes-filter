@@ -19,7 +19,7 @@ The /rename command can be used after the 10 minutes as an alternative.
 
 This bot allows keeping the meme channel as moderated as possible while keeping the ability of discussing memes via threads.
 
-The bot can also log events.
+*The bot also have error logging ability for debugging.*
 
 ## Setup
 
@@ -29,10 +29,10 @@ To run the bot, a `.env` file must be made with the following content:
 
 ```
 TOKEN=your_discord_bot_token
-GLOBAL_LOG=global_log_channel_id
+LOG=log_channel_id
 ```
 
-Replace `your_discord_bot_token` with your discord bot's token and `global_log_channel_id` with the channel id of a logging channel. The global logging channel will output the log of every server the bot is on. The `GLOBAL_LOG` env can be omitted for no global logging.
+Replace `your_discord_bot_token` with your discord bot's token and `log_channel_id` with the channel id of a logging channel. The error logging channel will output the log errors of every server the bot is on. The `LOG` env can be omitted for no error logging.
 
 Once the `.env` file is made, you may now run the `main.py` file.
 

@@ -4,47 +4,32 @@ from nextcord.ext import commands
 from math import ceil
 from paging import mkpages
 
-async def doLog(bot, content, guild_id):
+async def doLog(bot, content):
     try:
-        globalLog = await bot.client.fetch_channel(int(os.getenv('GLOBAL_LOG')))
+        globalLog = await bot.client.fetch_channel(int(os.getenv('LOG')))
         await globalLog.send(content=content)
     except:
         pass
-    for x in bot.c.execute("SELECT channel_id FROM targets WHERE type = 2").fetchall():
-        if bot.c.execute(f"SELECT guild_id FROM targets WHERE type = 2 AND channel_id = {x[0]}").fetchone()[0] == guild_id:
-            logChannel = await bot.client.fetch_channel(x[0])
-            try:
-                await logChannel.send(content=content)
-            except:
-                print(f"Couldn't send log in #{logChannel.name}")
-                await globalLog.send(f"Couldn't send log in {logChannel.mention}")
+    print(content)
     return 0
 
 async def getPage(interaction, bot, page:int, setType:int) -> None:
     # TYPE:
     # 0 = filters
-    # 2 = logs
     # 3 = registered threads
 
     class typeSelect(nextcord.ui.Select):
-        def __init__(self, bot, caller):
+        def __init__(self, bot):
             options=[
                 nextcord.SelectOption(label="Filter Channels", value=0, emoji="🧹"),
-                # nextcord.SelectOption(label="Bots Channels", value=1, emoji="🤖"),
-                nextcord.SelectOption(label="Logs Channels", value=2, emoji="🪵"),
                 nextcord.SelectOption(label="Registered Threads", value=3, emoji="🧵")
             ]
             super().__init__(placeholder="Select Type", options=options)
             self.bot = bot
-            self.caller = caller
 
         async def callback(self, interaction):
-            if interaction.user == caller:
-                await getPage(interaction, self.bot, 1, int(self.values[0]))
-            else:
-                await interaction.response.send_message(f"Only {caller.mention} may do this.", ephemeral=True)
+            await getPage(interaction, self.bot, 1, int(self.values[0]))
 
-    caller = interaction.user
     nextPage = nextcord.ui.Button(label=" Next", style=nextcord.ButtonStyle.blurple, emoji="➡️")
     prevPage = nextcord.ui.Button(label=" Previous", style=nextcord.ButtonStyle.blurple, emoji="⬅️")
     refreshPage = nextcord.ui.Button(label=" Refresh", style=nextcord.ButtonStyle.blurple, emoji="🔄")
@@ -52,15 +37,11 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
     view.add_item(prevPage)
     view.add_item(refreshPage)
     view.add_item(nextPage)
-    view.add_item(typeSelect(bot, caller))
+    view.add_item(typeSelect(bot))
 
     data = []
     if setType == 0:
-        data = bot.c.execute(f"SELECT channel_id FROM targets WHERE type = 0 AND guild_id = {interaction.guild.id}").fetchall()
-    # elif setType == 1:
-    #     data = sql.execute(f"SELECT channel_id FROM targets WHERE type = 1 AND guild_id = {interaction.guild.id}").fetchall()
-    elif setType == 2:
-        data = bot.c.execute(f"SELECT channel_id FROM targets WHERE type = 2 AND guild_id = {interaction.guild.id}").fetchall()
+        data = bot.c.execute(f"SELECT channel_id FROM filters WHERE guild_id = {interaction.guild.id}").fetchall()
     elif setType == 3:
         data = bot.c.execute(f"SELECT thread_id FROM threads WHERE guild_id = {interaction.guild.id}").fetchall()
 
@@ -74,20 +55,11 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
         page = 1
 
     async def callbackNext(interaction):
-        if interaction.user == caller:
-            await getPage(interaction, bot, page+1, setType)
-        else: 
-            await interaction.response.send_message(f"Only {caller.mention} may do this.", ephemeral=True)
+        await getPage(interaction, bot, page+1, setType)
     async def callbackRefresh(interaction):
-        if interaction.user == caller:
-            await getPage(interaction, bot, page, setType)
-        else:
-            await interaction.response.send_message(f"Only {caller.mention} may do this.", ephemeral=True)
+        await getPage(interaction, bot, page, setType)
     async def callbackPrev(interaction):
-        if interaction.user == caller:
-            await getPage(interaction, bot, page-1, setType)
-        else:
-            await interaction.response.send_message(f"Only {caller.mention} may do this.", ephemeral=True)
+        await getPage(interaction, bot, page-1, setType)
 
     nextPage.callback = callbackNext
     refreshPage.callback = callbackRefresh
@@ -108,10 +80,6 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
     embed = nextcord.Embed(title=f"{bot.client.user.name} Stats", description=info, color=0x3366cc)
     if setType == 0:
         embed.add_field(name="Filter Channels", value=dataContent)
-    # elif setType == 1:
-    #     embed.add_field(name="Bots Channels", value=dataContent)
-    elif setType == 2:
-        embed.add_field(name="Logs Channels", value=dataContent)
     elif setType == 3:
         embed.add_field(name="Registered Threads", value=dataContent)
     embed.set_footer(text=f"Page {page}/{lastPage}", icon_url=interaction.guild.icon)
@@ -128,8 +96,8 @@ class filterModal(nextcord.ui.Modal):
         self.bot = bot
         self.edit = edit
 
-        default_name = bot.c.execute(f"SELECT default_thread_name FROM targets WHERE channel_id = {channel.id} AND type = 0").fetchone()[0] if edit else ""
-        default_warn = bot.c.execute(f"SELECT warn_msg FROM targets WHERE channel_id = {channel.id} AND type = 0").fetchone()[0] if edit else ""
+        default_name = bot.c.execute(f"SELECT default_thread_name FROM filters WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
+        default_warn = bot.c.execute(f"SELECT warn_msg FROM filters WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
 
         self.defaultThreadName = nextcord.ui.TextInput(label="Default Thread Name:", min_length=5, max_length=100, default_value=default_name, required=True, style=nextcord.TextInputStyle.short)
         self.add_item(self.defaultThreadName)
@@ -138,23 +106,21 @@ class filterModal(nextcord.ui.Modal):
 
     async def callback(self, interaction:Interaction) -> None:
         if self.edit:
-            self.bot.c.execute(f"UPDATE targets SET warn_msg = '{self.warnMsg.value}' WHERE channel_id = {self.channel.id}")
+            self.bot.c.execute(f"UPDATE filters SET warn_msg = '{self.warnMsg.value}' WHERE channel_id = {self.channel.id}")
             self.bot.conn.commit()
-            self.bot.c.execute(f"UPDATE targets SET default_thread_name = '{self.defaultThreadName.value}' WHERE channel_id = {self.channel.id}")
+            self.bot.c.execute(f"UPDATE filters SET default_thread_name = '{self.defaultThreadName.value}' WHERE channel_id = {self.channel.id}")
             self.bot.conn.commit()
             await interaction.send_message(f"{self.channel.mention}'s filter settings has been updated.", ephemeral=True)
-            await doLog(bot, f"Filter channel \"{self.channel.name}\" has been configured.", interaction.guild.id)
         else:
-            sql = "INSERT INTO targets (channel_id, guild_id, type, warn_msg, default_thread_name) VALUES (?, ?, ?, ?, ?)"
-            val = (self.channel.id, interaction.guild.id, 0, self.warnMsg.value, self.defaultThreadName.value)
+            sql = "INSERT INTO filters (channel_id, guild_id, warn_msg, default_thread_name) VALUES (?, ?, ?, ?)"
+            val = (self.channel.id, interaction.guild.id, self.warnMsg.value, self.defaultThreadName.value)
             self.bot.c.execute(sql,val)
             self.bot.conn.commit()
             await interaction.response.send_message(f"{self.channel.mention} has been added as filter channel.", ephemeral=True)
-            await doLog(bot, f"Filter channel \"{self.channel.name}\" has been added to the database.", interaction.guild.id)
         return 0
 
     async def on_error(self, error, interaction):
-        await doLog(self.bot, f"⚠ Error: `{error}`", 0)
+        await doLog(self.bot, f"⚠ Error: `{error}`")
         raise error
 
 class renameModal(nextcord.ui.Modal):
@@ -168,11 +134,10 @@ class renameModal(nextcord.ui.Modal):
 
     async def callback(self, interaction:Interaction) -> None:
         await self.thread.edit(name=self.set_name.value)
-        await doLog(self.bot, f"Thread ({self.thread.id}) renamed by {interaction.user.name}", interaction.guild.id)
         return 0
 
     async def on_error(self, error, interaction):
-        await doLog(self.bot, f"⚠ Error: `{error}`", 0)
+        await doLog(self.bot, f"⚠ Error: `{error}`")
         raise error
 
 class renameThread(nextcord.ui.Button):
