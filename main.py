@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 intents = nextcord.Intents.all()
-client = nextcord.Client(intents=intents)
+client = nextcord.ext.commands.Bot(intents=intents)
 
 conn = sqlite3.connect("bot_2.sqlite3")
 c = conn.cursor()
@@ -40,7 +40,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS channels (
 # Values
 # int_val1: currentmsg_id
 # str_val1: warn_msg. rule_msg
-# str_val2: default_thread_name
+# str_val2: text_msg, default_thread_name
 # str_val3: embed_title
 
 # Channel type
@@ -157,7 +157,7 @@ async def add_channel(interaction:Interaction, channel:nextcord.TextChannel = ne
 
 @client.slash_command(description="Remove functionning channels.")
 @application_checks.has_permissions(manage_channels=True)
-async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only)."), setType:int = nextcord.SlashOption(description="Choose which functionning type.", choices={"filter channel":0, "logging channel":2}, name="from")):
+async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).")):
     check = c.execute(f"SELECT channel_id FROM channels WHERE channel_id = {channel.id}").fetchone()
     if check:
         c.execute(f"DELETE FROM channels WHERE channel_id = {channel.id}")
@@ -193,8 +193,6 @@ async def unregister(interaction:Interaction, thread:nextcord.Thread):
             await interaction.response.send_message("You do not own this thread.", ephemeral=True)
     else:
         await interaction.response.send_message("This thread isn't registered.", ephemeral=True)
-
-@client.slash_command(description="Create a post thread.")
 
 @client.slash_command(description="Waschen help.")
 async def help(interaction:Interaction):
