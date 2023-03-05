@@ -9,7 +9,7 @@ load_dotenv()
 intents = nextcord.Intents.all()
 client = nextcord.Client(intents=intents)
 
-conn = sqlite3.connect("bot.sqlite3")
+conn = sqlite3.connect("bot_2.sqlite3")
 c = conn.cursor()
 
 class Toolkit():
@@ -27,12 +27,25 @@ c.execute("""CREATE TABLE IF NOT EXISTS threads (
     embedmsg_id integer
 )""")
 
-c.execute("""CREATE TABLE IF NOT EXISTS filters (
+c.execute("""CREATE TABLE IF NOT EXISTS channels (
     channel_id integer,
     guild_id integer,
-    warn_msg text,
-    default_thread_name text
+    type integer,
+    int_val1 integer,
+    str_val1 text,
+    str_val2 text,
+    str_val3 text
 )""")
+
+# Values
+# int_val1: currentmsg_id
+# str_val1: warn_msg. rule_msg
+# str_val2: default_thread_name
+# str_val3: embed_title
+
+# Channel type
+# 0 - Filter
+# 1 - Forum
 
 @client.event
 async def on_ready():
@@ -59,14 +72,15 @@ urlRegex = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6
 
 @client.event
 async def on_message(message):
-    filters = c.execute("SELECT channel_id FROM filters").fetchall()
+    filters = c.execute("SELECT channel_id FROM channels WHERE type = 0").fetchall()
+    forums = c.execute("SELECT channel_id FROM channels WHERE type = 1").fetchall()
     for x in filters:
         if message.channel.id == x[0]:
             if message.attachments or re.search(urlRegex, message.content):
                 for y in client.get_all_application_commands():
                     if y.qualified_name == "rename":
                         rename_slash = y
-                thread = await message.create_thread(name=c.execute(f"SELECT default_thread_name FROM filters WHERE channel_id = {x[0]}").fetchone()[0].replace("$1", f"{message.author.name}"))
+                thread = await message.create_thread(name=c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {x[0]}").fetchone()[0].replace("$1", f"{message.author.name}"))
                 embed = nextcord.Embed(title="New Discussion Thread", description=f"Use 📝 button to rename it.\n\nThis will only be valid for the first 10 minutes. To rename the thread afterwards use {rename_slash.get_mention(guild=None)} instead.", color=0x3366cc)
                 embed.set_footer(icon_url=message.author.avatar ,text=f"This thread has been initialized and can only be renamed by {message.author.name}")
                 embedmsg = await thread.send(embed=embed, view=threadView(bot, thread, message.author.id), delete_after=600)
@@ -82,11 +96,19 @@ async def on_message(message):
             elif message.author.guild_permissions.manage_channels:
                 pass
             else:
-                warnMsg = c.execute(f"SELECT warn_msg FROM filters WHERE channel_id = {x[0]}").fetchone()[0].replace("$1", f"{message.channel.mention}")
+                warnMsg = c.execute(f"SELECT str_val1 FROM channels WHERE channel_id = {x[0]}").fetchone()[0].replace("$1", f"{message.channel.mention}")
                 try:
                     await message.author.send(warnMsg)
                 except:
                     await message.channel.send(f"{message.author.mention}\n{warnMsg}", delete_after=30)
+                await message.delete()
+    for x in forums:
+        if message.channel.id == x[0]:
+            if message.author.guild_permissions.manage_channels:
+                pass
+            elif message.author.id == client.user.id:
+                pass
+            else:
                 await message.delete()
 
 @client.event
@@ -114,34 +136,48 @@ async def rename(interaction:Interaction):
 async def stats(interaction:Interaction):
     await getPage(interaction, bot, 1, 3)
 
+#type:
+# 0 - filter
+# 1 - forum
+
 @client.slash_command(description="Add functionning channels.")
 @application_checks.has_permissions(manage_channels=True)
-async def add_filter(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).")):
-    check = c.execute(f"SELECT channel_id FROM filters WHERE channel_id = {channel.id}").fetchone()
+async def add_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only)."), asType:int = nextcord.SlashOption(description="Functioning type", name="as", choices={
+    "Filter Channel":0,
+    "Fake Forum Channel":1
+})):
+    check = c.execute(f"SELECT channel_id FROM channels WHERE channel_id = {channel.id}").fetchone()
     if not check:
-        await interaction.response.send_modal(filterModal(bot, channel, False))
+        if asType == 0:
+            await interaction.response.send_modal(filterModal(bot, channel, False))
+        elif asType == 1:
+            await interaction.response.send_modal(forumModal(bot, channel, False))
     else:
-        await interaction.response.send_message(f"{channel.mention} is already a filter channel.", ephemeral=True)
+        await interaction.response.send_message(f"{channel.mention} is already used.", ephemeral=True)
 
 @client.slash_command(description="Remove functionning channels.")
 @application_checks.has_permissions(manage_channels=True)
-async def rm_filter(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only)."), setType:int = nextcord.SlashOption(description="Choose which functionning type.", choices={"filter channel":0, "logging channel":2}, name="from")):
-    check = c.execute(f"SELECT channel_id FROM filters WHERE channel_id = {channel.id}").fetchone()
+async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only)."), setType:int = nextcord.SlashOption(description="Choose which functionning type.", choices={"filter channel":0, "logging channel":2}, name="from")):
+    check = c.execute(f"SELECT channel_id FROM channels WHERE channel_id = {channel.id}").fetchone()
     if check:
-        c.execute(f"DELETE FROM filters WHERE channel_id = {channel.id}")
+        c.execute(f"DELETE FROM channels WHERE channel_id = {channel.id}")
         conn.commit()
-        await interaction.response.send_message(f"{channel.mention} is no longer a filter channel.", ephemeral=True)
+        await interaction.response.send_message(f"{channel.mention} has been removed.", ephemeral=True)
     else:
-        await interaction.response.send_message(f"{channel.mention} isn't a filter channel.", ephemeral=True)
+        await interaction.response.send_message(f"{channel.mention} isn't a valid channel.", ephemeral=True)
 
 @client.slash_command(description="Configure filter channel.")
 @application_checks.has_permissions(manage_channels=True)
-async def conf_filter(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).")):
-    check = c.execute(f"SELECT channel_id FROM filters WHERE channel_id = {channel.id}").fetchone()
+async def conf_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).")):
+    check = c.execute(f"SELECT channel_id FROM channels WHERE channel_id = {channel.id}").fetchone()
     if check:
-        await interaction.response.send_modal(filterModal(bot, channel, True))
+        get_type = (f"SELECT type FROM channels WHERE channel_id = {channel.id}").fetchone()
+        if get_type[0] == 0:
+            await interaction.response.send_modal(filterModal(bot, channel, True))
+        elif get_type[0] == 1:
+            await interaction.response.send_modal(forumModal(bot, channel, True))
     else:
-        await interaction.response.send_message(f"{channel.mention} isn't a filter channel.", ephemeral=True)
+        await interaction.response.send_message(f"{channel.mention} isn't a valid channel.", ephemeral=True)
 
 @client.slash_command(description="Unregister a thread from the database.")
 async def unregister(interaction:Interaction, thread:nextcord.Thread):
@@ -157,6 +193,8 @@ async def unregister(interaction:Interaction, thread:nextcord.Thread):
             await interaction.response.send_message("You do not own this thread.", ephemeral=True)
     else:
         await interaction.response.send_message("This thread isn't registered.", ephemeral=True)
+
+@client.slash_command(description="Create a post thread.")
 
 @client.slash_command(description="Waschen help.")
 async def help(interaction:Interaction):

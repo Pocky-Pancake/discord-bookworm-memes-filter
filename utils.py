@@ -16,12 +16,14 @@ async def doLog(bot, content):
 async def getPage(interaction, bot, page:int, setType:int) -> None:
     # TYPE:
     # 0 = filters
+    # 1 = forums
     # 3 = registered threads
 
     class typeSelect(nextcord.ui.Select):
         def __init__(self, bot):
             options=[
                 nextcord.SelectOption(label="Filter Channels", value=0, emoji="🧹"),
+                nextcord.SelectOption(label="Fake forum Channels", value=1, emoji="🗪"),
                 nextcord.SelectOption(label="Registered Threads", value=3, emoji="🧵")
             ]
             super().__init__(placeholder="Select Type", options=options)
@@ -41,7 +43,9 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
 
     data = []
     if setType == 0:
-        data = bot.c.execute(f"SELECT channel_id FROM filters WHERE guild_id = {interaction.guild.id}").fetchall()
+        data = bot.c.execute(f"SELECT channel_id FROM channels WHERE type = 0 AND guild_id = {interaction.guild.id}").fetchall()
+    if setType == 1:
+        data = bot.c.execute(f"SELECT channel_id FROM channels WHERE type = 1 AND guild_id = {interaction.guild.id}").fetchall()
     elif setType == 3:
         data = bot.c.execute(f"SELECT thread_id FROM threads WHERE guild_id = {interaction.guild.id}").fetchall()
 
@@ -80,6 +84,8 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
     embed = nextcord.Embed(title=f"{bot.client.user.name} Stats", description=info, color=0x3366cc)
     if setType == 0:
         embed.add_field(name="Filter Channels", value=dataContent)
+    if setType == 1:
+        embed.add_field(name="Fake forum Channels", value=dataContent)
     elif setType == 3:
         embed.add_field(name="Registered Threads", value=dataContent)
     embed.set_footer(text=f"Page {page}/{lastPage}", icon_url=interaction.guild.icon)
@@ -87,6 +93,52 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
         await interaction.response.edit_message(embed=embed, view=view)
     except:
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+class postModal(nextcord.ui.Modal):
+    pass
+
+class postView(nextcord.ui.Button):
+    pass
+
+async def stickyMsg(bot):
+    pass
+
+class forumModal(nextcord.ui.Modal):
+    def __init__(self, bot, channel, edit:bool):
+        modalTitle = "Edit Fake Forum Channel" if edit else "Setup Fake Forum Channel"
+        super().__init__(modalTitle, auto_defer=True)
+        self.channel = channel
+        self.bot = bot
+        self.edit = edit
+
+        default_rule = bot.c.execute(f"SELECT str_val1 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
+        default_name = bot.c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
+        default_title = bot.c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
+
+        self.embedTitle = nextcord.ui.TextInput(label="Embed Title:", max_length=50, default_value=default_title, required=True, style=nextcord.TextInputStyle.short)
+        self.add_item(self.embedTitle)
+        self.ruleMsg = nextcord.ui.TextInput(label="Rules:", min_length=10, max_length=2000, default_value=default_rule, required=True, style=nextcord.TextInputStyle.paragraph)
+        self.add_item(self.ruleMsg)
+        self.defaultThreadName = nextcord.ui.TextInput(label="Default Thread Name:", min_length=5, max_length=100, default_value=default_name, required=True, style=nextcord.TextInputStyle.short)
+        self.add_item(self.defaultThreadName)
+
+    async def callback(self, interaction:Interaction) -> None:
+        if self.edit:
+            self.bot.c.execute(f"UPDATE channels SET str_val1 = '{self.ruleMsg.value}' WHERE channel_id = {self.channel.id}")
+            self.bot.conn.commit()
+            self.bot.c.execute(f"UPDATE channels SET str_val2 = '{self.defaultThreadName.value}' WHERE channel_id = {self.channel.id}")
+            self.bot.conn.commit()
+            self.bot.c.execute(f"UPDATE channels SET str_val3 = '{self.embedTitle.value}' WHERE channel_id = {self.channel.id}")
+            self.bot.conn.commit()
+            await interaction.send_message(f"{self.channel.mention}'s fake forum settings has been updated.", ephemeral=True)
+        else:
+            sql = "INSERT INTO channels (channel_id, guild_id, type, int_val1, str_val1, str_val2, str_val3) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            val = (self.channel.id, interaction.guild.id, 1, None, self.ruleMsg.value, self.defaultThreadName.value, self.embedTitle.value)
+            self.bot.c.execute(sql,val)
+            self.bot.conn.commit()
+            await interaction.response.send_message(f"{self.channel.mention} has been added as fake forum channel.", ephemeral=True)
+            await stickyMsg(self.bot)
+        return 0
 
 class filterModal(nextcord.ui.Modal):
     def __init__(self, bot, channel, edit:bool):
@@ -96,8 +148,8 @@ class filterModal(nextcord.ui.Modal):
         self.bot = bot
         self.edit = edit
 
-        default_name = bot.c.execute(f"SELECT default_thread_name FROM filters WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
-        default_warn = bot.c.execute(f"SELECT warn_msg FROM filters WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
+        default_name = bot.c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
+        default_warn = bot.c.execute(f"SELECT str_val1 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
 
         self.defaultThreadName = nextcord.ui.TextInput(label="Default Thread Name:", min_length=5, max_length=100, default_value=default_name, required=True, style=nextcord.TextInputStyle.short)
         self.add_item(self.defaultThreadName)
@@ -106,14 +158,14 @@ class filterModal(nextcord.ui.Modal):
 
     async def callback(self, interaction:Interaction) -> None:
         if self.edit:
-            self.bot.c.execute(f"UPDATE filters SET warn_msg = '{self.warnMsg.value}' WHERE channel_id = {self.channel.id}")
+            self.bot.c.execute(f"UPDATE channels SET str_val1 = '{self.warnMsg.value}' WHERE channel_id = {self.channel.id}")
             self.bot.conn.commit()
-            self.bot.c.execute(f"UPDATE filters SET default_thread_name = '{self.defaultThreadName.value}' WHERE channel_id = {self.channel.id}")
+            self.bot.c.execute(f"UPDATE channels SET str_val2 = '{self.defaultThreadName.value}' WHERE channel_id = {self.channel.id}")
             self.bot.conn.commit()
             await interaction.send_message(f"{self.channel.mention}'s filter settings has been updated.", ephemeral=True)
         else:
-            sql = "INSERT INTO filters (channel_id, guild_id, warn_msg, default_thread_name) VALUES (?, ?, ?, ?)"
-            val = (self.channel.id, interaction.guild.id, self.warnMsg.value, self.defaultThreadName.value)
+            sql = "INSERT INTO channels (channel_id, guild_id, type, int_val1, str_val1, str_val2, str_val3) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            val = (self.channel.id, interaction.guild.id, 0, None, self.warnMsg.value, self.defaultThreadName.value, None)
             self.bot.c.execute(sql,val)
             self.bot.conn.commit()
             await interaction.response.send_message(f"{self.channel.mention} has been added as filter channel.", ephemeral=True)
@@ -162,3 +214,4 @@ class threadView(nextcord.ui.View):
     async def on_error(self, error, item, interaction):
         await doLog(self.bot, f"⚠ Error: `{error}`", 0)
         raise error
+
