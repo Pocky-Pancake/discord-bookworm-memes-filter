@@ -18,13 +18,17 @@ class Toolkit():
         self.c = c
         self.conn = conn
 
+    def sleep(self, setTime:float):
+        time.sleep(setTime)
+
 bot = Toolkit(client, c, conn)
 
 c.execute("""CREATE TABLE IF NOT EXISTS threads (
     user_id integer,
     thread_id integer,
     guild_id integer,
-    embedmsg_id integer
+    embedmsg_id integer,
+    state integer
 )""")
 
 c.execute("""CREATE TABLE IF NOT EXISTS channels (
@@ -38,7 +42,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS channels (
 )""")
 
 # Values
-# int_val1: currentmsg_id
+# int_val1: msg_id
 # str_val1: warn_msg. rule_msg
 # str_val2: text_msg, default_thread_name
 # str_val3: embed_title
@@ -57,6 +61,17 @@ async def on_ready():
             await embedmsg.delete()
         except:
             pass
+
+    empty_threads = c.execute("SELECT thread_id FROM threads WHERE state = 0").fetchall()
+    for x in empty_threads:
+        thread = await client.fetch_channel(x[0])
+        await thread.delete()
+
+    forums = c.execute("SELECT channel_id FROM channels WHERE type = 1").fetchall()
+    for x in forums:
+        channel = await client.fetch_channel(x[0])
+        await stickyMsg(bot, channel)
+
     print(f"{client.user.name} is ready")
 
 @client.event
@@ -85,8 +100,8 @@ async def on_message(message):
                 embed.set_footer(icon_url=message.author.avatar ,text=f"This thread has been initialized and can only be renamed by {message.author.name}")
                 embedmsg = await thread.send(embed=embed, view=threadView(bot, thread, message.author.id), delete_after=600)
                 await thread.leave()
-                sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id) VALUES (?, ?, ?, ?)"
-                val = (message.author.id, thread.id, message.guild.id, embedmsg.id)
+                sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id, state) VALUES (?, ?, ?, ?, ?)"
+                val = (message.author.id, thread.id, message.guild.id, embedmsg.id, None)
                 c.execute(sql,val)
                 conn.commit()
             elif message.type == nextcord.MessageType.pins_add:
@@ -105,11 +120,20 @@ async def on_message(message):
     for x in forums:
         if message.channel.id == x[0]:
             if message.author.guild_permissions.manage_channels:
-                pass
+                await resetSticky(bot, message.channel)
+            elif message.type == nextcord.MessageType.thread_created:
+                await resetSticky(bot, message.channel)
             elif message.author.id == client.user.id:
                 pass
             else:
                 await message.delete()
+
+@client.event
+async def on_message_delete(message):
+    msgs_id = c.execute(f"SELECT int_val1 FROM channels WHERE type = 1").fetchall()
+    for x in msgs_id:
+        if x[0] == message.id:
+            await stickyMsg(bot, message.channel)
 
 @client.event
 async def on_thread_delete(thread):
@@ -171,7 +195,7 @@ async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nex
 async def conf_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).")):
     check = c.execute(f"SELECT channel_id FROM channels WHERE channel_id = {channel.id}").fetchone()
     if check:
-        get_type = (f"SELECT type FROM channels WHERE channel_id = {channel.id}").fetchone()
+        get_type = c.execute(f"SELECT type FROM channels WHERE channel_id = {channel.id}").fetchone()
         if get_type[0] == 0:
             await interaction.response.send_modal(filterModal(bot, channel, True))
         elif get_type[0] == 1:
@@ -193,6 +217,16 @@ async def unregister(interaction:Interaction, thread:nextcord.Thread):
             await interaction.response.send_message("You do not own this thread.", ephemeral=True)
     else:
         await interaction.response.send_message("This thread isn't registered.", ephemeral=True)
+
+@client.slash_command(description="Create a post.")
+async def post(interaction:Interaction):
+    check = c.execute(f"SELECT channel_id FROM channels WHERE type = 1 AND channel_id = {interaction.channel.id}").fetchone()[0]
+    if check:
+        embed = postEmbed(bot, interaction.channel)
+        view = postView(bot, interaction.channel)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    else:
+        await interaction
 
 @client.slash_command(description="Waschen help.")
 async def help(interaction:Interaction):
