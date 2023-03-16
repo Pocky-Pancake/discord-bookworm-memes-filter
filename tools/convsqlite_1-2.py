@@ -24,7 +24,7 @@ if exist:
             user_id integer,
             thread_id integer,
             guild_id integer,
-            embedmsg_id integer
+            embedmsg_id integer,
         )""")
 
         c_new.execute("""CREATE TABLE channels (
@@ -47,8 +47,8 @@ if exist:
             print(f"GUILD {get_guild[0]}")
             get_embed = c_old.execute(f"SELECT embedmsg_id FROM threads WHERE thread_id = ?", [x[0]]).fetchone()
             print(f"EMBED {get_embed[0]}")
-            sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id, state) VALUES (?, ?, ?, ?, ?)"
-            val = (get_user[0], x[0], get_guild[0], get_embed[0], None)
+            sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id, type) VALUES (?, ?, ?, ?)"
+            val = (get_user[0], x[0], get_guild[0], get_embed[0])
             c_new.execute(sql,val)
             conn_new.commit()
         get_filters = c_old.execute("SELECT channel_id FROM filters").fetchall()

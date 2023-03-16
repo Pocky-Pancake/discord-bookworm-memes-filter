@@ -1,4 +1,4 @@
-import nextcord, os, re, sqlite3, time
+import nextcord, os, re, sqlite3, time, datetime
 from utils import *
 from nextcord import Interaction
 from nextcord.ext import commands, application_checks
@@ -28,7 +28,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS threads (
     thread_id integer,
     guild_id integer,
     embedmsg_id integer,
-    state integer
+    type integer
 )""")
 
 c.execute("""CREATE TABLE IF NOT EXISTS channels (
@@ -44,7 +44,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS channels (
 # Values
 # int_val1: msg_id
 # str_val1: warn_msg. rule_msg
-# str_val2: text_msg, default_thread_name
+# str_val2: default_thread_name
 # str_val3: embed_title
 
 # Channel type
@@ -62,11 +62,6 @@ async def on_ready():
         except:
             pass
 
-    empty_threads = c.execute("SELECT thread_id FROM threads WHERE state = 0").fetchall()
-    for x in empty_threads:
-        thread = await client.fetch_channel(x[0])
-        await thread.delete()
-
     forums = c.execute("SELECT channel_id FROM channels WHERE type = 1").fetchall()
     for x in forums:
         channel = await client.fetch_channel(x[0])
@@ -79,29 +74,33 @@ async def on_application_command_error(interaction:Interaction, error):
     error = getattr(error, "original", error)
     if isinstance(error, application_checks.ApplicationMissingPermissions):
         await interaction.response.send_message(f"{error}", ephemeral=True)
+    if isinstance(error, nextcord.errors.Forbidden):
+        await doLog(bot, f"⚠ Error: `{error}`")
+        raise error
     else:
         await doLog(bot, f"⚠ Error: `{error}`")
         raise error
 
 urlRegex = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
+serverRegex1 = r"(server)?(.*|\s?)(mascot|mas-cot)"
 
 @client.event
 async def on_message(message):
     filters = c.execute("SELECT channel_id FROM channels WHERE type = 0").fetchall()
     forums = c.execute("SELECT channel_id FROM channels WHERE type = 1").fetchall()
+    for y in client.get_all_application_commands():
+                    if y.qualified_name == "rename":
+                        rename_slash = y
     for x in filters:
         if message.channel.id == x[0]:
             if message.attachments or re.search(urlRegex, message.content):
-                for y in client.get_all_application_commands():
-                    if y.qualified_name == "rename":
-                        rename_slash = y
                 thread = await message.create_thread(name=c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {x[0]}").fetchone()[0].replace("$1", f"{message.author.name}"))
                 embed = nextcord.Embed(title="New Discussion Thread", description=f"Use 📝 button to rename it.\n\nThis will only be valid for the first 10 minutes. To rename the thread afterwards use {rename_slash.get_mention(guild=None)} instead.", color=0x3366cc)
                 embed.set_footer(icon_url=message.author.avatar ,text=f"This thread has been initialized and can only be renamed by {message.author.name}")
                 embedmsg = await thread.send(embed=embed, view=threadView(bot, thread, message.author.id), delete_after=600)
                 await thread.leave()
-                sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id, state) VALUES (?, ?, ?, ?, ?)"
-                val = (message.author.id, thread.id, message.guild.id, embedmsg.id, None)
+                sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id) VALUES (?, ?, ?, ?)"
+                val = (message.author.id, thread.id, message.guild.id, embedmsg.id)
                 c.execute(sql,val)
                 conn.commit()
             elif message.type == nextcord.MessageType.pins_add:
@@ -119,14 +118,31 @@ async def on_message(message):
                 await message.delete()
     for x in forums:
         if message.channel.id == x[0]:
-            if message.author.guild_permissions.manage_channels:
-                await resetSticky(bot, message.channel)
-            elif message.type == nextcord.MessageType.thread_created:
-                await resetSticky(bot, message.channel)
+            if message.type == nextcord.MessageType.thread_created:
+                try:
+                    await resetSticky(bot, message.channel)
+                except:
+                    pass
             elif message.author.id == client.user.id:
                 pass
-            else:
+            elif message.type == nextcord.MessageType.reply and message.author.id != client.user.id:
                 await message.delete()
+            elif re.search(umRegex, message.content.lower()) and message.author.id != client.user.id:
+                if not message.author.guild_permissions.manage_channels:
+                    await message.author.timeout(timeout=datetime.datetime.now()+datetime.timedelta(days=3), reason="No server mascot")
+                await message.delete()
+            else:
+                thread = await message.create_thread(name=c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {x[0]}").fetchone()[0].replace("$1", f"{message.author.name}"))
+                embed = nextcord.Embed(title="New Post Thread", description=f"Use 📝 button to rename it.\n\nThis will only be valid for the first 10 minutes. To rename the thread afterwards use {rename_slash.get_mention(guild=None)} instead.", color=0x3366cc)
+                embed.set_footer(icon_url=message.author.avatar ,text=f"This thread has been initialized and can only be renamed by {message.author.name}")
+                embedmsg = await thread.send(embed=embed, view=threadView(bot, thread, message.author.id), delete_after=600)
+                await thread.leave()
+                sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id) VALUES (?, ?, ?, ?)"
+                val = (message.author.id, thread.id, message.guild.id, embedmsg.id)
+                c.execute(sql,val)
+                conn.commit()
+                time.sleep(10)
+                await resetSticky(bot, message.channel)
 
 @client.event
 async def on_message_delete(message):
@@ -152,7 +168,10 @@ async def rename(interaction:Interaction):
         user_id = None
     if interaction.channel.id == thread_id and interaction.user.id == user_id:
         thread = await client.fetch_channel(thread_id)
-        await interaction.response.send_modal(renameModal(bot, thread))
+        if thread.locked:
+            await interaction.response.send_message("This thread is locked.", ephemeral=True)
+        else:
+            await interaction.response.send_modal(renameModal(bot, thread))
     else:
         await interaction.response.send_message("This channel is either not a thread, not a registered thread or you don't own this thread.", ephemeral=True)
 
@@ -184,8 +203,17 @@ async def add_channel(interaction:Interaction, channel:nextcord.TextChannel = ne
 async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nextcord.SlashOption(description="Target channel (Text channel only).")):
     check = c.execute(f"SELECT channel_id FROM channels WHERE channel_id = {channel.id}").fetchone()
     if check:
+        static = None
+        if c.execute(f"SELECT type FROM channels WHERE channel_id = {check[0]}").fetchone()[0] == 1:
+            static_id = c.execute(f"SELECT int_val1 FROM channels WHERE channel_id = {check[0]}").fetchone()[0]
+            channel = await client.fetch_channel(check[0])
+            static = await channel.fetch_message(static_id)
         c.execute(f"DELETE FROM channels WHERE channel_id = {channel.id}")
         conn.commit()
+        try:
+            await static.delete()
+        except:
+            pass
         await interaction.response.send_message(f"{channel.mention} has been removed.", ephemeral=True)
     else:
         await interaction.response.send_message(f"{channel.mention} isn't a valid channel.", ephemeral=True)

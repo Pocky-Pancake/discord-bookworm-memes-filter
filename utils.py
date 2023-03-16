@@ -2,7 +2,26 @@ import nextcord, sqlite3, os
 from nextcord import Interaction
 from nextcord.ext import commands
 from math import ceil
-from paging import mkpages
+from typing import Union
+
+#Temporary
+def mkpages(iterable:Union[list,str,tuple,dict,set], items:int):
+    pages = []
+    items = 1 if items <= 0 else items
+    for x in iterable:
+        page = 0
+        appending = True
+        while appending:
+            try:
+                if len(pages[page]) < items:
+                    pages[page].append(x)
+                    appending = False
+                else:
+                    page += 1
+            except:
+                pages.append([x])
+                appending = False
+    return tuple(pages)
 
 async def doLog(bot, content):
     try:
@@ -94,56 +113,6 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
     except:
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-class postModal(nextcord.ui.Modal):
-    def __init__(self, bot):
-        super().__init__("Create Post", auto_defer=True)
-        self.bot = bot
-
-        self.set_name = nextcord.ui.TextInput(label="Post Name:", placeholder="Topic", max_length=100, required=True, style=nextcord.TextInputStyle.short)
-        self.add_item(self.set_name)
-
-    async def callback(self, interaction:Interaction):
-        thread = await interaction.channel.create_thread(name=self.set_name.value, type=nextcord.ChannelType.public_thread, reason="Waschen Post Thread")
-        sql = "INSERT INTO threads (user_id, thread_id, guild_id, embedmsg_id, state) VALUES (?, ?, ?, ?, ?)"
-        val = (interaction.user.id, thread.id, interaction.guild.id, None, 0)
-        self.bot.c.execute(sql,val)
-        self.bot.conn.commit()
-
-    async def on_error(self, error, interaction):
-        await doLog(self.bot, f"⚠ Error: `{error}`")
-        raise error
-
-class postView(nextcord.ui.View):
-    def __init__(self, bot, channel):
-        super().__init__(timeout=300)
-        agreeButton = nextcord.ui.Button(label="I understand", style=nextcord.ButtonStyle.green)
-        async def agreeButtonCallback(interaction:Interaction):
-            await interaction.response.send_modal(postModal(bot))
-        agreeButton.callback = agreeButtonCallback
-        self.add_item(agreeButton)
-
-    async def on_error(self, error, item, interaction):
-        await doLog(self.bot, f"⚠ Error: `{error}`")
-        raise error
-
-class postEmbed(nextcord.Embed):
-    def __init__(self, bot, channel):
-        embedTitle = bot.c.execute(f"SELECT str_val3 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
-        ruleMsg = bot.c.execute(f"SELECT str_val1 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
-        super().__init__(title=embedTitle, description=ruleMsg, color=0x3366cc)
-
-class msgView(nextcord.ui.View):
-    def __init__(self, bot, channel):
-        self.bot = bot
-        super().__init__(timeout=None)
-        postButton = nextcord.ui.Button(label="Start a Post", style=nextcord.ButtonStyle.blurple)
-        async def postButtonCallback(interaction:Interaction):
-            view = postView(bot, channel)
-            embed = postEmbed(bot, channel)
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        postButton.callback = postButtonCallback
-        self.add_item(postButton)
-
     async def on_error(self, error, item, interaction):
         await doLog(self.bot, f"⚠ Error: `{error}`")
         raise error
@@ -155,21 +124,22 @@ async def resetSticky(bot, channel):
 
 async def stickyMsg(bot, channel):
     check = bot.c.execute(f"SELECT int_val1 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
-    view = msgView(bot, channel)
-    msgText = bot.c.execute(f"SELECT str_val2 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
+    embedTitle = bot.c.execute(f"SELECT str_val3 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
+    Rule = bot.c.execute(f"SELECT str_val1 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
+    embed = nextcord.Embed(title=embedTitle, description=Rule, color=0x3366cc)
     if check:
         try:
             message = await channel.fetch_message(check)
             await message.delete()
-            message = await channel.send(f"{msgText}", view=view)
+            message = await channel.send(embed=embed)
             bot.c.execute(f"UPDATE channels SET int_val1 = {message.id} WHERE channel_id = {channel.id} AND type = 1")
             bot.conn.commit()
         except:
-            message = await channel.send(f"{msgText}", view=view)
+            message = await channel.send(embed=embed)
             bot.c.execute(f"UPDATE channels SET int_val1 = {message.id} WHERE channel_id = {channel.id} AND type = 1")
             bot.conn.commit()
     else:
-        message = await channel.send(msgText, view=view)
+        message = await channel.send(embed=embed)
         bot.c.execute(f"UPDATE channels SET int_val1 = {message.id} WHERE channel_id = {channel.id} AND type = 1")
         bot.conn.commit()
 
@@ -182,21 +152,21 @@ class forumModal(nextcord.ui.Modal):
         self.edit = edit
 
         default_rule = bot.c.execute(f"SELECT str_val1 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
-        default_text = bot.c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
+        default_name = bot.c.execute(f"SELECT str_val2 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
         default_title = bot.c.execute(f"SELECT str_val3 FROM channels WHERE channel_id = {channel.id}").fetchone()[0] if edit else ""
 
         self.embedTitle = nextcord.ui.TextInput(label="Embed Title:", min_length=1, max_length=50, default_value=default_title, required=True, style=nextcord.TextInputStyle.short)
         self.add_item(self.embedTitle)
         self.ruleMsg = nextcord.ui.TextInput(label="Rules:", min_length=10, max_length=2000, default_value=default_rule, required=True, style=nextcord.TextInputStyle.paragraph)
         self.add_item(self.ruleMsg)
-        self.msgText = nextcord.ui.TextInput(label="Message Text:", min_length=10, max_length=2000, default_value=default_text, required=True, style=nextcord.TextInputStyle.paragraph)
-        self.add_item(self.msgText)
+        self.defaultThreadName = nextcord.ui.TextInput(label="Default Thread Name:", max_length=100, default_value=default_name, required=True, style=nextcord.TextInputStyle.short)
+        self.add_item(self.defaultThreadName)
 
     async def callback(self, interaction:Interaction) -> None:
         if self.edit:
             self.bot.c.execute(f"UPDATE channels SET str_val1 = ? WHERE channel_id = {self.channel.id}", [self.ruleMsg.value])
             self.bot.conn.commit()
-            self.bot.c.execute(f"UPDATE channels SET str_val2 = ? WHERE channel_id = {self.channel.id}", [self.msgText.value])
+            self.bot.c.execute(f"UPDATE channels SET str_val2 = ? WHERE channel_id = {self.channel.id}", [self.defaultThreadName.value])
             self.bot.conn.commit()
             self.bot.c.execute(f"UPDATE channels SET str_val3 = ? WHERE channel_id = {self.channel.id}", [self.embedTitle.value])
             self.bot.conn.commit()
@@ -205,7 +175,7 @@ class forumModal(nextcord.ui.Modal):
             await resetSticky(self.bot, self.channel)
         else:
             sql = "INSERT INTO channels (channel_id, guild_id, type, int_val1, str_val1, str_val2, str_val3) VALUES (?, ?, ?, ?, ?, ?, ?)"
-            val = (self.channel.id, interaction.guild.id, 1, None, self.ruleMsg.value, self.msgText.value, self.embedTitle.value)
+            val = (self.channel.id, interaction.guild.id, 1, None, self.ruleMsg.value, self.defaultThreadName.value, self.embedTitle.value)
             self.bot.c.execute(sql,val)
             self.bot.conn.commit()
             await interaction.response.send_message(f"{self.channel.mention} has been added as fake forum channel.", ephemeral=True)
