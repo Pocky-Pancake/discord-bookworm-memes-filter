@@ -128,5 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Database
 *.sqlite3
+
+# Sticky data
+*.i
 
