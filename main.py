@@ -127,7 +127,7 @@ async def on_message(message):
                 pass
             elif message.type == nextcord.MessageType.reply and message.author.id != client.user.id:
                 await message.delete()
-            elif re.search(umRegex, message.content.lower()) and message.author.id != client.user.id:
+            elif re.search(serverRegex1, message.content.lower()) and message.author.id != client.user.id:
                 if not message.author.guild_permissions.manage_channels:
                     await message.author.timeout(timeout=datetime.datetime.now()+datetime.timedelta(days=3), reason="No server mascot")
                 await message.delete()
