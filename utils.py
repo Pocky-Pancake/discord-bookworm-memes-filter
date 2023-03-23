@@ -118,30 +118,34 @@ async def getPage(interaction, bot, page:int, setType:int) -> None:
         raise error
 
 async def resetSticky(bot, channel):
-    message_id = bot.c.execute(f"SELECT int_val1 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
-    message = await channel.fetch_message(message_id)
+    f = open(f"./sticky/{channel.id}.i", "rt")
+    message = await channel.fetch_message(int(f.read()))
+    f.close()
     await message.delete()
 
 async def stickyMsg(bot, channel):
-    check = bot.c.execute(f"SELECT int_val1 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
+    check = False
+    for x in os.listdir("./sticky"):
+        if x == f"{channel.id}.i":
+            check = True
     embedTitle = bot.c.execute(f"SELECT str_val3 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
     Rule = bot.c.execute(f"SELECT str_val1 FROM channels WHERE type = 1 AND channel_id = {channel.id}").fetchone()[0]
     embed = nextcord.Embed(title=embedTitle, description=Rule, color=0x3366cc)
+    f = open(f"./sticky/{channel.id}.i", "w")
     if check:
         try:
-            message = await channel.fetch_message(check)
+            message = await channel.fetch_message(int(f.read()))
             await message.delete()
             message = await channel.send(embed=embed)
-            bot.c.execute(f"UPDATE channels SET int_val1 = {message.id} WHERE channel_id = {channel.id} AND type = 1")
-            bot.conn.commit()
+            f.write(f"{message.id}")
         except:
             message = await channel.send(embed=embed)
-            bot.c.execute(f"UPDATE channels SET int_val1 = {message.id} WHERE channel_id = {channel.id} AND type = 1")
-            bot.conn.commit()
+            f.write(f"{message.id}")
+        
     else:
         message = await channel.send(embed=embed)
-        bot.c.execute(f"UPDATE channels SET int_val1 = {message.id} WHERE channel_id = {channel.id} AND type = 1")
-        bot.conn.commit()
+        f.write(f"{message.id}")
+    f.close()
 
 class forumModal(nextcord.ui.Modal):
     def __init__(self, bot, channel, edit:bool):
@@ -174,8 +178,8 @@ class forumModal(nextcord.ui.Modal):
             self.bot.sleep(3)
             await resetSticky(self.bot, self.channel)
         else:
-            sql = "INSERT INTO channels (channel_id, guild_id, type, int_val1, str_val1, str_val2, str_val3) VALUES (?, ?, ?, ?, ?, ?, ?)"
-            val = (self.channel.id, interaction.guild.id, 1, None, self.ruleMsg.value, self.defaultThreadName.value, self.embedTitle.value)
+            sql = "INSERT INTO channels (channel_id, guild_id, type, str_val1, str_val2, str_val3) VALUES (?, ?, ?, ?, ?, ?)"
+            val = (self.channel.id, interaction.guild.id, 1, self.ruleMsg.value, self.defaultThreadName.value, self.embedTitle.value)
             self.bot.c.execute(sql,val)
             self.bot.conn.commit()
             await interaction.response.send_message(f"{self.channel.mention} has been added as fake forum channel.", ephemeral=True)
@@ -211,8 +215,8 @@ class filterModal(nextcord.ui.Modal):
             self.bot.conn.commit()
             await interaction.send_message(f"{self.channel.mention}'s filter settings has been updated.", ephemeral=True)
         else:
-            sql = "INSERT INTO channels (channel_id, guild_id, type, int_val1, str_val1, str_val2, str_val3) VALUES (?, ?, ?, ?, ?, ?, ?)"
-            val = (self.channel.id, interaction.guild.id, 0, None, self.warnMsg.value, self.defaultThreadName.value, None)
+            sql = "INSERT INTO channels (channel_id, guild_id, type, str_val1, str_val2, str_val3) VALUES (?, ?, ?, ?, ?, ?)"
+            val = (self.channel.id, interaction.guild.id, 0, self.warnMsg.value, self.defaultThreadName.value, None)
             self.bot.c.execute(sql,val)
             self.bot.conn.commit()
             await interaction.response.send_message(f"{self.channel.mention} has been added as filter channel.", ephemeral=True)

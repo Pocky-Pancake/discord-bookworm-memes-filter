@@ -9,7 +9,7 @@ load_dotenv()
 intents = nextcord.Intents.all()
 client = nextcord.ext.commands.Bot(intents=intents)
 
-conn = sqlite3.connect("bot_2.sqlite3")
+conn = sqlite3.connect("waschen.sqlite3")
 c = conn.cursor()
 
 class Toolkit():
@@ -35,14 +35,12 @@ c.execute("""CREATE TABLE IF NOT EXISTS channels (
     channel_id integer,
     guild_id integer,
     type integer,
-    int_val1 integer,
     str_val1 text,
     str_val2 text,
     str_val3 text
 )""")
 
 # Values
-# int_val1: msg_id
 # str_val1: warn_msg. rule_msg
 # str_val2: default_thread_name
 # str_val3: embed_title
@@ -65,7 +63,13 @@ async def on_ready():
     forums = c.execute("SELECT channel_id FROM channels WHERE type = 1").fetchall()
     for x in forums:
         channel = await client.fetch_channel(x[0])
-        await stickyMsg(bot, channel)
+        with open(f"./sticky/{channel.id}.i", "rt") as f:
+            try:
+                sticky = await channel.fetch_message(int(f.read()))
+                await sticky.delete()
+            except:
+                pass
+            await stickyMsg(bot, channel)
 
     print(f"{client.user.name} is ready")
 
@@ -127,7 +131,7 @@ async def on_message(message):
                 pass
             elif message.type == nextcord.MessageType.reply and message.author.id != client.user.id:
                 await message.delete()
-            elif re.search(umRegex, message.content.lower()) and message.author.id != client.user.id:
+            elif re.search(serverRegex1, message.content.lower()) and message.author.id != client.user.id:
                 if not message.author.guild_permissions.manage_channels:
                     await message.author.timeout(timeout=datetime.datetime.now()+datetime.timedelta(days=3), reason="No server mascot")
                 await message.delete()
@@ -146,10 +150,11 @@ async def on_message(message):
 
 @client.event
 async def on_message_delete(message):
-    msgs_id = c.execute(f"SELECT int_val1 FROM channels WHERE type = 1").fetchall()
-    for x in msgs_id:
-        if x[0] == message.id:
-            await stickyMsg(bot, message.channel)
+    for x in os.listdir("./sticky"):
+        if x[-2:] == ".i":
+            with open(f"./sticky/{x}", "rt") as f:
+                if int(f.read()) == message.id:
+                    await stickyMsg(bot, message.channel)
 
 @client.event
 async def on_thread_delete(thread):
@@ -205,15 +210,16 @@ async def rm_channel(interaction:Interaction, channel:nextcord.TextChannel = nex
     if check:
         static = None
         if c.execute(f"SELECT type FROM channels WHERE channel_id = {check[0]}").fetchone()[0] == 1:
-            static_id = c.execute(f"SELECT int_val1 FROM channels WHERE channel_id = {check[0]}").fetchone()[0]
-            channel = await client.fetch_channel(check[0])
-            static = await channel.fetch_message(static_id)
+            f = open(f"./sticky/{check[0]}.i")
+            sticky = await channel.fetch_message(int(f.read()))
+            f.close()
+            os.remove(f"./sticky/{check[0]}.i")
+            try:
+                await sticky.delete()
+            except:
+                pass
         c.execute(f"DELETE FROM channels WHERE channel_id = {channel.id}")
         conn.commit()
-        try:
-            await static.delete()
-        except:
-            pass
         await interaction.response.send_message(f"{channel.mention} has been removed.", ephemeral=True)
     else:
         await interaction.response.send_message(f"{channel.mention} isn't a valid channel.", ephemeral=True)
