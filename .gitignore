@@ -134,3 +134,5 @@ dmypy.json
 # Sticky data
 *.i
 
+#no cogs
+cogs/
