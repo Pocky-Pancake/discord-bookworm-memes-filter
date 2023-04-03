@@ -7,10 +7,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 intents = nextcord.Intents.all()
-client = nextcord.ext.commands.Bot(intents=intents)
+client = commands.Bot(intents=intents)
 
 conn = sqlite3.connect("waschen.sqlite3")
 c = conn.cursor()
+
+for f in os.listdir('./cogs'):
+    if f.endswith('.py'):
+        client.load_extension(f"cogs.{f[:-3]}")
 
 class Toolkit():
     def __init__(self, client, c, conn):
@@ -70,7 +74,6 @@ async def on_ready():
             except:
                 pass
             await stickyMsg(bot, channel)
-
     print(f"{client.user.name} is ready")
 
 @client.event
@@ -243,9 +246,11 @@ async def unregister(interaction:Interaction, thread:nextcord.Thread):
     if check:
         if interaction.user.id == c.execute(f"SELECT user_id FROM threads WHERE thread_id = {check}").fetchone()[0]:
             c.execute(f"DELETE FROM threads WHERE thread_id = {check}")
+            conn.commit()
             await interaction.response.send_message("Thread unregistered.", ephemeral=True)
         elif interaction.user.guild_permissions.manage_channels:
             c.execute(f"DELETE FROM threads WHERE thread_id = {check}")
+            conn.commit()
             await interaction.response.send_message("Thread unregistered.", ephemeral=True)
         else:
             await interaction.response.send_message("You do not own this thread.", ephemeral=True)
